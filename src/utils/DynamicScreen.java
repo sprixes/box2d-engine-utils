@@ -283,7 +283,7 @@ public class DynamicScreen implements Screen, InputProcessor {
 
 		position.x *= (float) 1280 / Gdx.graphics.getWidth();
 		position.y = (Gdx.graphics.getHeight() - position.y) * 800 / Gdx.graphics.getHeight();
-
+		position.add(camera.position.x, camera.position.y);
 		position.div(PIXEL_PER_METER);
 		testPoint.set(position.x, position.y, 0);
 		System.out.println(position);
