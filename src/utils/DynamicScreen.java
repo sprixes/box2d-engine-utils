@@ -1,5 +1,7 @@
 package utils;
 
+import java.util.Iterator;
+
 import aurelienribon.tweenengine.Tween;
 import aurelienribon.tweenengine.TweenAccessor;
 import aurelienribon.tweenengine.TweenCallback;
@@ -9,21 +11,27 @@ import aurelienribon.tweenengine.equations.Linear;
 
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.InputMultiplexer;
 import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.assets.AssetManager;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
+import com.badlogic.gdx.physics.box2d.Contact;
+import com.badlogic.gdx.physics.box2d.ContactImpulse;
+import com.badlogic.gdx.physics.box2d.ContactListener;
 import com.badlogic.gdx.physics.box2d.Fixture;
+import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.QueryCallback;
 import com.badlogic.gdx.physics.box2d.World;
 
-public class DynamicScreen implements Screen, InputProcessor {
+public class DynamicScreen extends InputMultiplexer implements Screen, InputProcessor, ContactListener {
 	public static class DynamicCamera extends Camera implements TweenAccessor<DynamicCamera> {
 
 		protected static final int TWEEN_XY = 1;
@@ -65,21 +73,28 @@ public class DynamicScreen implements Screen, InputProcessor {
 			}
 		}
 
-		public Tween interpolate(float targetScaleX, float targetScaleY, TweenEquation equation, int duration) {
+		public Tween interpolateZoom(float targetScaleX, float targetScaleY, TweenEquation equation, int duration, boolean autoStart) {
 			tween = Tween.to(this, TWEEN_ZOOM, duration).target(targetScaleX, targetScaleY).ease(equation);
 			tweenDeltaTime = System.currentTimeMillis();
+			if (autoStart)
+				tween.start(tweenManager);
 			return tween;
+
 		}
 
-		public Tween interpolate(int targetRotation, TweenEquation equation, int duration) {
+		public Tween interpolateRotation(int targetRotation, TweenEquation equation, int duration, boolean autoStart) {
 			tween = Tween.to(this, TWEEN_ROTATION, duration).target(targetRotation).ease(equation);
 			tweenDeltaTime = System.currentTimeMillis();
+			if (autoStart)
+				tween.start(tweenManager);
 			return tween;
 		}
 
-		public Tween interpolate(Vector2 target, TweenEquation equation, int duration) {
+		public Tween interpolateXY(Vector2 target, TweenEquation equation, int duration, boolean autoStart) {
 			tween = Tween.to(this, TWEEN_XY, duration).target(target.x, target.y).ease(equation);
 			tweenDeltaTime = System.currentTimeMillis();
+			if (autoStart)
+				tween.start(tweenManager);
 			return tween;
 		}
 
@@ -100,15 +115,15 @@ public class DynamicScreen implements Screen, InputProcessor {
 
 		public void shake() {
 			tweenManager.update(1000);
-			interpolate(new Vector2(position.x - 15, position.y), Linear.INOUT, 40).start(tweenManager);
-			interpolate(new Vector2(position.x + 15, position.y), Linear.INOUT, 40).delay(15).start(tweenManager);
-			interpolate(new Vector2(position.x - 15, position.y), Linear.INOUT, 40).delay(30).start(tweenManager);
-			interpolate(new Vector2(position.x + 15, position.y), Linear.INOUT, 40).delay(45).start(tweenManager);
-			interpolate(new Vector2(position.x - 15, position.y), Linear.INOUT, 40).delay(60).start(tweenManager);
-			interpolate(new Vector2(position.x + 15, position.y), Linear.INOUT, 40).delay(75).start(tweenManager);
-			interpolate(new Vector2(position.x - 15, position.y), Linear.INOUT, 40).delay(90).start(tweenManager);
-			interpolate(new Vector2(position.x + 15, position.y), Linear.INOUT, 40).delay(105).start(tweenManager);
-			interpolate(new Vector2(position.x, position.y), Linear.INOUT, 40).delay(120).start(tweenManager);
+			interpolateXY(new Vector2(position.x - 15, position.y), Linear.INOUT, 40, true);
+			interpolateXY(new Vector2(position.x + 15, position.y), Linear.INOUT, 40, true).delay(15);
+			interpolateXY(new Vector2(position.x - 15, position.y), Linear.INOUT, 40, true).delay(30);
+			interpolateXY(new Vector2(position.x + 15, position.y), Linear.INOUT, 40, true).delay(45);
+			interpolateXY(new Vector2(position.x - 15, position.y), Linear.INOUT, 40, true).delay(60);
+			interpolateXY(new Vector2(position.x + 15, position.y), Linear.INOUT, 40, true).delay(75);
+			interpolateXY(new Vector2(position.x - 15, position.y), Linear.INOUT, 40, true).delay(90);
+			interpolateXY(new Vector2(position.x + 15, position.y), Linear.INOUT, 40, true).delay(105);
+			interpolateXY(new Vector2(position.x, position.y), Linear.INOUT, 40, true).delay(120);
 		}
 
 		@Override
@@ -141,15 +156,13 @@ public class DynamicScreen implements Screen, InputProcessor {
 
 	protected Vector2 gravity = new Vector2(0, -20);
 
-	protected static final float PIXEL_PER_METER = 10f;
+	public static final float PIXEL_PER_METER = 10f;
 
 	public Dynamic2DShape dynamic2dShape;
 
 	public Body hitBody = null;
 
 	public Vector3 testPoint = new Vector3();
-	Matrix4 projection = new Matrix4();
-	Matrix4 box2dprojection = new Matrix4();
 
 	public DynamicScreen(Game game) {
 		super();
@@ -187,7 +200,7 @@ public class DynamicScreen implements Screen, InputProcessor {
 		box2dDebugRenderer = new Box2DDebugRenderer();
 		dynamic2dShape = new Dynamic2DShape(world, PIXEL_PER_METER);
 		Gdx.input.setInputProcessor(this);
-
+		world.setContactListener(this);
 	}
 
 	public QueryCallback callback = new QueryCallback() {
@@ -199,6 +212,7 @@ public class DynamicScreen implements Screen, InputProcessor {
 				hitBody = fixture.getBody();
 				hitBody.destroyFixture(fixture);
 				System.out.println(hitBody);
+
 				return false;
 			} else {
 
@@ -206,6 +220,10 @@ public class DynamicScreen implements Screen, InputProcessor {
 			}
 		}
 	};
+
+	public float getPixelPermeter() {
+		return PIXEL_PER_METER;
+	}
 
 	@Override
 	public void show() {
@@ -219,6 +237,41 @@ public class DynamicScreen implements Screen, InputProcessor {
 		world.step(delta, 3, 3);
 		box2dDebugRenderer.render(world, camera.box2Dprojection);
 		spriteBatch.setProjectionMatrix(camera.projection);
+		Iterator<Body> bi = world.getBodies();
+		while (bi.hasNext()) {
+			Body body = bi.next();
+
+			// Get the bodies user data - in this example, our user
+			// data is an instance of the Entity class
+			DynamicDisplay target = (DynamicDisplay) body.getUserData();
+			if (target != null && body != null) {
+				// Update the target/sprites position and angle
+				if (target.visible) {
+					spriteBatch.begin();
+					target.render(spriteBatch);
+					spriteBatch.end();
+					target.update(delta);
+					target.setPosition(body.getPosition().x * PIXEL_PER_METER, body.getPosition().y * PIXEL_PER_METER);
+					target.setRotation(MathUtils.radiansToDegrees * body.getAngle());
+				}
+				// if (hitBody == body) {
+				// world.destroyBody(body);
+				// body.setUserData(null);
+				// body = null;
+				// }
+
+			}
+		}
+		// for (Iterator<Body> iter = world.getBodies(); iter.hasNext();) {
+		// Body body = iter.next();
+		// if(body!=null) {
+		// YourCustomUserData data = (YourCustomUserData) body.getUserData();
+		// if(data.isFlaggedForDelete) {
+		// CURRENT_WORLD.destroyBody(body);
+		// body.setUserData(null);
+		// body = null;
+		// }
+		// }
 
 	}
 
@@ -305,7 +358,11 @@ public class DynamicScreen implements Screen, InputProcessor {
 
 	@Override
 	public boolean mouseMoved(int screenX, int screenY) {
-
+		Vector2 position = new Vector2(screenX, screenY);
+		position.x *= (float) 1280 / Gdx.graphics.getWidth();
+		position.y = (Gdx.graphics.getHeight() - position.y) * 800 / Gdx.graphics.getHeight();
+		position.add(camera.position.x, camera.position.y);
+		System.out.println(position);
 		return false;
 	}
 
@@ -313,6 +370,44 @@ public class DynamicScreen implements Screen, InputProcessor {
 	public boolean scrolled(int amount) {
 		// TODO Auto-generated method stub
 		return false;
+	}
+
+	/* contact listener */
+	/*
+	 * BeginContact - fired when two fixtures start contacting (aka touching)
+	 * each other
+	 * 
+	 * /*EndContact - fired when two fixtures cease contact
+	 */
+	/*
+	 * /* PreSolve -fired before contact is resolved. you have the opportunity
+	 * to override the contact here.
+	 */
+	/*
+	 * PostSolve - fired once the contact is resolved. the event also includes
+	 * the impulse from the contact.
+	 */
+	@Override
+	public void beginContact(Contact contact) {
+
+	}
+
+	@Override
+	public void endContact(Contact contact) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void preSolve(Contact contact, Manifold oldManifold) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void postSolve(Contact contact, ContactImpulse impulse) {
+		// TODO Auto-generated method stub
+
 	}
 
 }

@@ -1,5 +1,7 @@
 package utils;
 
+import aurelienribon.bodyeditor.BodyEditorLoader;
+
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
@@ -12,6 +14,8 @@ import com.badlogic.gdx.physics.box2d.World;
 public class Dynamic2DShape {
 	public World world;
 	public float pixel_per_meter;
+	public BodyEditorLoader loader;
+	public boolean BodyEditorLoaderExist = false;
 
 	/*
 	 * initialize World
@@ -27,6 +31,35 @@ public class Dynamic2DShape {
 
 	public float ConvertPixelsToMeter(float n) {
 		return n / pixel_per_meter;
+	}
+
+	public void setBodyEditorLoader(BodyEditorLoader loader) {
+		this.loader = loader;
+		BodyEditorLoaderExist = true;
+	}
+
+	public Body createDynamicShape(String target, BodyType type, float x, float y, float density, float friction, float restitution) {
+		if (BodyEditorLoaderExist) {
+			BodyDef def = new BodyDef();
+			def.position.set(0, 0);
+			def.type = type;
+			Body box = world.createBody(def);
+
+			FixtureDef fd = new FixtureDef();
+			fd.density = density;
+			fd.friction = friction;
+			fd.restitution = restitution;
+			loader.attachFixture(box, target, fd, 0);// scale set to 0;
+
+			/*
+			 * the default origin of box2d center center damn that shit
+			 * loader.getOrigin(target, 0).cpy();// scale set to 0; FIXME
+			 */
+
+			return box;
+		}
+		System.out.println("[Dynamic2DShpae] BodyEditor loader not yet set!");
+		return null;
 	}
 
 	/*
@@ -60,18 +93,27 @@ public class Dynamic2DShape {
 	}
 
 	/*
-	 * returns Body CircleShape
+	 * returns Body CircleShape registration for position left bottom
 	 */
+	public Body createCircle(DynamicDisplay target, BodyType type, float x, float y, float density, float friction, float restitution) {
+		return createCircle(target, type, x, y, target.getBounds().getWidth(), density, friction, restitution);
+	}
+
+	public Body createCircle(DynamicSprite target, BodyType type, float x, float y, float density, float friction, float restitution) {
+		return createCircle(target, type, x, y, target.getBounds().getWidth(), density, friction, restitution);
+	}
+
 	public Body createCircle(DynamicAnimation target, BodyType type, float x, float y, float density, float friction, float restitution) {
-		return createCircle(type, x, y, target.getBounds().getWidth(), density, friction, restitution);
+		return createCircle(target, type, x, y, target.getBounds().getWidth(), density, friction, restitution);
 	}
 
 	public Body createCircle(BodyType type, float x, float y, float distance, float density) {
 
-		return createCircle(type, x, y, distance, density, 0.2f, 0);
+		return createCircle(null, type, x, y, distance, density, 0.2f, 0);
 	}
 
-	public Body createCircle(BodyType type, float x, float y, float distance, float density, float friction, float restitution) {
+	public Body createCircle(DynamicDisplay target, BodyType type, float x, float y, float distance, float density, float friction, float restitution) {
+
 		Vector2 position = new Vector2(x, y);
 		float radius = distance / 2;
 		BodyDef def = new BodyDef();
@@ -91,23 +133,33 @@ public class Dynamic2DShape {
 
 		// box.createFixture(poly, density);
 		poly.dispose();
-
+		if (target != null) {
+			box.setUserData(target);
+		}
 		return box;
 	}
 
 	/*
-	 * returns Body BoxShape
+	 * returns Body BoxShape registration for position left bottom
 	 */
+	public Body createBox(DynamicDisplay target, BodyType type, float x, float y, float density, float friction, float restitution) {
+		return createBox(target, type, x, y, target.getBounds().width, target.getBounds().height, density, friction, restitution);
+	}
+
+	public Body createBox(DynamicSprite target, BodyType type, float x, float y, float density, float friction, float restitution) {
+		return createBox(target, type, x, y, target.getBounds().width, target.getBounds().height, density, friction, restitution);
+	}
+
 	public Body createBox(DynamicAnimation target, BodyType type, float x, float y, float density, float friction, float restitution) {
-		return createBox(type, x, y, target.getBounds().width, target.getBounds().height, density, friction, restitution);
+		return createBox(target, type, x, y, target.getBounds().width, target.getBounds().height, density, friction, restitution);
 	}
 
 	public Body createBox(BodyType type, float x, float y, float width, float height, float density) {
 
-		return createBox(type, x, y, width, height, density, 0.2f, 0);
+		return createBox(null, type, x, y, width, height, density, 0.2f, 0);
 	}
 
-	public Body createBox(BodyType type, float x, float y, float width, float height, float density, float friction, float restitution) {
+	public Body createBox(DynamicDisplay target, BodyType type, float x, float y, float width, float height, float density, float friction, float restitution) {
 		Vector2 position = new Vector2(x, y);
 		float tempwidth = width / 2;
 		float tempheight = height / 2;
@@ -123,15 +175,46 @@ public class Dynamic2DShape {
 		fd.friction = friction;
 		fd.restitution = restitution;
 		box.createFixture(fd);
-
 		box.setTransform(ConvertPixelsToMeter(position.x + (width / 2)), ConvertPixelsToMeter(position.y + (height / 2)), box.getAngle());
 		// box.setTransform(ConvertPixelsToMeter(position.x),
 		// ConvertPixelsToMeter(position.y), box.getAngle());
 
 		// box.createFixture(poly, density);
 		poly.dispose();
-
+		if (target != null) {
+			box.setUserData(target);
+		}
 		return box;
 	}
 
+	/*
+	 * dynamicPolygon "TRIAL" FIXME
+	 * 
+	 * registration CENTER CENTER
+	 */
+	public Body createPolygon(DynamicDisplay target, BodyType type, float x, float y, float[] vertices, float density, float friction, float restitution) {
+		Vector2 position = new Vector2(x, y);
+		BodyDef def = new BodyDef();
+		def.type = type;
+		Body box = world.createBody(def);
+
+		PolygonShape poly = new PolygonShape();
+		poly.set(vertices);
+		FixtureDef fd = new FixtureDef();
+		fd.shape = poly;
+		fd.density = density;
+		fd.friction = friction;
+		fd.restitution = restitution;
+		box.createFixture(fd);
+		box.setTransform(ConvertPixelsToMeter(position.x), ConvertPixelsToMeter(position.y), box.getAngle());
+		// box.setTransform(ConvertPixelsToMeter(position.x),
+		// ConvertPixelsToMeter(position.y), box.getAngle());
+
+		// box.createFixture(poly, density);
+		poly.dispose();
+		if (target != null) {
+			box.setUserData(target);
+		}
+		return box;
+	}
 }
