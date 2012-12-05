@@ -160,9 +160,13 @@ public class DynamicScreen extends InputMultiplexer implements Screen, InputProc
 
 	public Dynamic2DShape dynamic2dShape;
 
+	public DynamicBodyBuilder dynamicBodyBuilder;
+
 	public Body hitBody = null;
 
 	public Vector3 testPoint = new Vector3();
+
+	public boolean Box2DDebug = true;
 
 	public DynamicScreen(Game game) {
 		super();
@@ -178,6 +182,7 @@ public class DynamicScreen extends InputMultiplexer implements Screen, InputProc
 		world = new World(gravity, true);
 		box2dDebugRenderer = new Box2DDebugRenderer();
 		dynamic2dShape = new Dynamic2DShape(world, PIXEL_PER_METER);
+		dynamicBodyBuilder = new DynamicBodyBuilder(world, PIXEL_PER_METER);
 		Gdx.input.setInputProcessor(this);
 
 	}
@@ -199,6 +204,7 @@ public class DynamicScreen extends InputMultiplexer implements Screen, InputProc
 		world = new World(gravity, true);
 		box2dDebugRenderer = new Box2DDebugRenderer();
 		dynamic2dShape = new Dynamic2DShape(world, PIXEL_PER_METER);
+		dynamicBodyBuilder = new DynamicBodyBuilder(world, PIXEL_PER_METER);
 		Gdx.input.setInputProcessor(this);
 		world.setContactListener(this);
 	}
@@ -209,9 +215,9 @@ public class DynamicScreen extends InputMultiplexer implements Screen, InputProc
 			// if the hit point is inside the fixture of the body
 			// we report it
 			if (fixture.testPoint(testPoint.x, testPoint.y)) {
-				hitBody = fixture.getBody();
-				hitBody.destroyFixture(fixture);
-				System.out.println(hitBody);
+				// hitBody = fixture.getBody();
+				// hitBody.destroyFixture(fixture);
+				// System.out.println(hitBody);
 
 				return false;
 			} else {
@@ -234,45 +240,37 @@ public class DynamicScreen extends InputMultiplexer implements Screen, InputProc
 	public void render(float delta) {
 
 		camera.update();
-		world.step(delta, 3, 3);
-		box2dDebugRenderer.render(world, camera.box2Dprojection);
+		if (delta > 1) {
+			System.out.println(delta);
+		}
+		// world.step(delta, 8, 5);
+		world.step(1f / 60f, 8, 5);
+		if (Box2DDebug) {
+			box2dDebugRenderer.render(world, camera.box2Dprojection);
+		}
+
 		spriteBatch.setProjectionMatrix(camera.projection);
+		/* Render DynamicDisplay */
 		Iterator<Body> bi = world.getBodies();
 		while (bi.hasNext()) {
 			Body body = bi.next();
-
-			// Get the bodies user data - in this example, our user
-			// data is an instance of the Entity class
 			DynamicDisplay target = (DynamicDisplay) body.getUserData();
 			if (target != null && body != null) {
-				// Update the target/sprites position and angle
 				if (target.visible) {
 					spriteBatch.begin();
 					target.render(spriteBatch);
 					spriteBatch.end();
 					target.update(delta);
-					target.setPosition(body.getPosition().x * PIXEL_PER_METER, body.getPosition().y * PIXEL_PER_METER);
-					target.setRotation(MathUtils.radiansToDegrees * body.getAngle());
+					if (body.isActive()) {
+						target.setPosition(body.getPosition().x * PIXEL_PER_METER, body.getPosition().y * PIXEL_PER_METER);
+						target.setRotation(MathUtils.radiansToDegrees * body.getAngle());
+
+					}
+
 				}
-				// if (hitBody == body) {
-				// world.destroyBody(body);
-				// body.setUserData(null);
-				// body = null;
-				// }
 
 			}
 		}
-		// for (Iterator<Body> iter = world.getBodies(); iter.hasNext();) {
-		// Body body = iter.next();
-		// if(body!=null) {
-		// YourCustomUserData data = (YourCustomUserData) body.getUserData();
-		// if(data.isFlaggedForDelete) {
-		// CURRENT_WORLD.destroyBody(body);
-		// body.setUserData(null);
-		// body = null;
-		// }
-		// }
-
 	}
 
 	public DynamicCamera getCamera() {
@@ -331,7 +329,7 @@ public class DynamicScreen extends InputMultiplexer implements Screen, InputProc
 
 	@Override
 	public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-		hitBody = null;
+		// hitBody = null;
 		Vector2 position = new Vector2(screenX, screenY);
 
 		position.x *= (float) 1280 / Gdx.graphics.getWidth();
@@ -362,7 +360,7 @@ public class DynamicScreen extends InputMultiplexer implements Screen, InputProc
 		position.x *= (float) 1280 / Gdx.graphics.getWidth();
 		position.y = (Gdx.graphics.getHeight() - position.y) * 800 / Gdx.graphics.getHeight();
 		position.add(camera.position.x, camera.position.y);
-		System.out.println(position);
+		// System.out.println(position);
 		return false;
 	}
 
@@ -400,6 +398,7 @@ public class DynamicScreen extends InputMultiplexer implements Screen, InputProc
 
 	@Override
 	public void preSolve(Contact contact, Manifold oldManifold) {
+
 		// TODO Auto-generated method stub
 
 	}
@@ -410,4 +409,11 @@ public class DynamicScreen extends InputMultiplexer implements Screen, InputProc
 
 	}
 
+	public Vector2 ConvertPixelsToMeter(Vector2 n) {
+		return n.div(getPixelPermeter());
+	}
+
+	public float ConvertPixelsToMeter(float n) {
+		return n / getPixelPermeter();
+	}
 }

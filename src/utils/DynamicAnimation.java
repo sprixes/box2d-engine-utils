@@ -4,8 +4,10 @@ import java.util.List;
 
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureAtlas.AtlasRegion;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.utils.Array;
 
 public class DynamicAnimation extends DynamicDisplay {
 
@@ -24,6 +26,16 @@ public class DynamicAnimation extends DynamicDisplay {
 		frameDuration = clone.frameDuration;
 		frameIndex = clone.frameIndex;
 		frameCount = clone.frameCount;
+	}
+
+	/* Jiss FIX THIS */
+	public DynamicAnimation(float frameDuration, Array<AtlasRegion> array) {
+		this.keyFrames = new TextureRegion[array.size];
+		this.frameDuration = frameDuration;
+
+		for (int index = 0; index < array.size; index++)
+			this.keyFrames[index] = array.get(index);
+		setRegistration(registration);
 	}
 
 	public DynamicAnimation(float frameDuration, List<TextureRegion> keyFrames) {
